@@ -1,0 +1,25 @@
+#include "info.h"
+
+unsigned char ctrl_info[18][18]={
+{"DSE 2023 - ROBOT""\x0D\x0A"},
+{"================""\x0D\x0A"},
+{"==== ANALOG ====""\x0D\x0A"},
+{"Potencia:   ----""\x0D\x0A"},
+{"Temperat:   ----""\x0D\x0A"},
+{"Joystick X: ----""\x0D\x0A"},
+{"Joystick Y: ----""\x0D\x0A"},
+{"Palanca:    ----""\x0D\x0A"},
+{"Potencia:   ----""\x0D\x0A"},
+{"Potencia:   ----""\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+{"\x0D\x0A"},
+};
