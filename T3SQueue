@@ -1,0 +1,67 @@
+import java.io.FileInputStream;
+import java.security.KeyStore;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.Properties;
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+
+public class AddCertificateToQueueManager {
+
+    public static void main(String[] args) {
+        // Ruta del archivo .cer del servidor
+        String certificatePath = "/ruta/al/archivo.cer";
+        
+        // Contraseña de la clave privada del certificado (si está protegido por contraseña)
+        String certificatePassword = "password";
+        
+        // Configurar las propiedades del sistema
+        System.setProperty("javax.net.ssl.trustStore", "trustStore.jks");
+        System.setProperty("javax.net.ssl.trustStorePassword", "trustStorePassword");
+
+        try {
+            // Cargar el certificado desde el archivo .cer
+            FileInputStream fis = new FileInputStream(certificatePath);
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            X509Certificate certificate = (X509Certificate) cf.generateCertificate(fis);
+            fis.close();
+            
+            // Cargar el almacén de claves y añadir el certificado
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            keyStore.load(null, null);
+            keyStore.setCertificateEntry("server", certificate);
+
+            // Guardar el almacén de claves en un archivo temporal
+            String tempKeyStorePath = "/ruta/al/tempKeyStore.jks";
+            FileOutputStream fos = new FileOutputStream(tempKeyStorePath);
+            keyStore.store(fos, certificatePassword.toCharArray());
+            fos.close();
+            
+            // Configurar las propiedades del sistema para el almacén de claves temporal
+            System.setProperty("javax.net.ssl.keyStore", tempKeyStorePath);
+            System.setProperty("javax.net.ssl.keyStorePassword", certificatePassword);
+            
+            // Configurar el objeto InitialContext con las propiedades
+            Properties properties = new Properties();
+            properties.put(Context.INITIAL_CONTEXT_FACTORY, "weblogic.jndi.WLInitialContextFactory");
+            properties.put(Context.PROVIDER_URL, "t3s://hostname:port");
+            
+            // Obtener el objeto InitialContext
+            InitialContext initialContext = new InitialContext(properties);
+            
+            // Realizar las operaciones necesarias con el gestor de colas
+            
+            // Cerrar el InitialContext
+            initialContext.close();
+            
+            // Eliminar el almacén de claves temporal
+            File tempKeyStoreFile = new File(tempKeyStorePath);
+            tempKeyStoreFile.delete();
+            
+            System.out.println("Certificado añadido correctamente y conexión establecida.");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
