@@ -1,0 +1,37 @@
+import asyncio
+import pandas as pd
+from pyppeteer import launch
+
+async def export_table_to_excel():
+    # Configura pyppeteer y abre una página
+    browser = await launch()
+    page = await browser.newPage()
+    url = 'URL_DE_TU_PAGINA'  # Reemplaza esto con la URL de tu página web
+    await page.goto(url)
+
+    # Ejecuta código JavaScript en la página para exportar la tabla
+    table_data = await page.evaluate('''() => {
+        // Aquí debes escribir código para seleccionar la tabla y extraer los datos
+        // Ejemplo:
+        const table = document.querySelector('table'); // Selecciona la tabla
+        const rows = Array.from(table.querySelectorAll('tr')); // Obtiene todas las filas
+        const data = rows.map(row =>
+          Array.from(row.querySelectorAll('td, th')).map(cell => cell.textContent.trim())
+        );
+        return data;
+    }''')
+
+    # Cerrar el navegador
+    await browser.close()
+
+    # Crear un DataFrame de pandas con los datos
+    df = pd.DataFrame(table_data[1:], columns=table_data[0])
+
+    # Guardar el DataFrame en un archivo Excel
+    excel_file = 'tabla.xlsx'
+    df.to_excel(excel_file, index=False)
+
+    print(f'Tabla exportada a {excel_file}')
+
+if __name__ == '__main__':
+    asyncio.get_event_loop().run_until_complete(export_table_to_excel())
