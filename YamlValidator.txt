@@ -1,0 +1,147 @@
+import os
+import argparse
+import yaml
+from typing import Any, List
+
+
+def cargar_yaml(ruta: str) -> Any:
+    with open(ruta, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def comparar_valores(orig: Any, nuevo: Any, ruta_clave: str = "") -> List[str]:
+    """
+    Compara dos estructuras YAML (ya cargadas en Python) y devuelve
+    una lista de diferencias encontradas.
+    
+    - Recorre todas las claves/valores presentes en el ORIGINAL.
+    - Si en el nuevo no existe o el valor es distinto, lo reporta.
+    """
+    diferencias = []
+
+    # Diccionarios
+    if isinstance(orig, dict):
+        if not isinstance(nuevo, dict):
+            diferencias.append(
+                f"{ruta_clave}: tipo distinto (original=dict, nuevo={type(nuevo).__name__})"
+            )
+            return diferencias
+
+        for k, v in orig.items():
+            nueva_ruta = f"{ruta_clave}.{k}" if ruta_clave else k
+            if k not in nuevo:
+                diferencias.append(f"{nueva_ruta}: clave no encontrada en el nuevo YAML")
+            else:
+                diferencias.extend(comparar_valores(v, nuevo[k], nueva_ruta))
+
+    # Listas
+    elif isinstance(orig, list):
+        if not isinstance(nuevo, list):
+            diferencias.append(
+                f"{ruta_clave}: tipo distinto (original=list, nuevo={type(nuevo).__name__})"
+            )
+            return diferencias
+
+        # Recorremos por índice, pero solo hasta la longitud del original
+        for idx, item in enumerate(orig):
+            nueva_ruta = f"{ruta_clave}[{idx}]"
+            if idx >= len(nuevo):
+                diferencias.append(
+                    f"{nueva_ruta}: elemento no encontrado en la lista del nuevo YAML"
+                )
+            else:
+                diferencias.extend(comparar_valores(item, nuevo[idx], nueva_ruta))
+
+    # Valores escalares
+    else:
+        if orig != nuevo:
+            diferencias.append(
+                f"{ruta_clave}: valor distinto (original={orig!r}, nuevo={nuevo!r})"
+            )
+
+    return diferencias
+
+
+def validar_par_de_ficheros(ruta_original: str, ruta_nuevo: str) -> None:
+    print(f"\nComparando:\n  Original: {ruta_original}\n  Nuevo:    {ruta_nuevo}")
+
+    if not os.path.exists(ruta_original):
+        print("  [ERROR] El archivo original no existe.")
+        return
+
+    if not os.path.exists(ruta_nuevo):
+        print("  [ERROR] El archivo nuevo no existe.")
+        return
+
+    try:
+        yaml_orig = cargar_yaml(ruta_original)
+        yaml_nuevo = cargar_yaml(ruta_nuevo)
+    except Exception as e:
+        print(f"  [ERROR] Al leer/parsing YAML: {e}")
+        return
+
+    diffs = comparar_valores(yaml_orig, yaml_nuevo)
+
+    if not diffs:
+        print("  ✅ No se han encontrado diferencias respecto al original.")
+    else:
+        print("  ⚠ Diferencias detectadas:")
+        for d in diffs:
+            print("   -", d)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Valida que los valores/propriedades del YAML original están en el YAML nuevo."
+    )
+    parser.add_argument(
+        "--dir-original",
+        required=True,
+        help="Carpeta donde están los ficheros YAML originales",
+    )
+    parser.add_argument(
+        "--dir-nuevo",
+        required=True,
+        help="Carpeta donde están los ficheros YAML modificados",
+    )
+    parser.add_argument(
+        "--fichero",
+        help="Nombre de un fichero concreto (opcional). Si no se indica, recorre todos los .yml/.yaml que existan en ambas carpetas.",
+    )
+
+    args = parser.parse_args()
+
+    dir_original = args.dir_original
+    dir_nuevo = args.dir_nuevo
+
+    if args.fichero:
+        # Modo: solo un fichero
+        ruta_orig = os.path.join(dir_original, args.fichero)
+        ruta_nuevo = os.path.join(dir_nuevo, args.fichero)
+        validar_par_de_ficheros(ruta_orig, ruta_nuevo)
+    else:
+        # Modo: varios ficheros, detecta comunes por nombre
+        nombres = set()
+        for nombre in os.listdir(dir_original):
+            if nombre.lower().endswith((".yml", ".yaml")):
+                nombres.add(nombre)
+        for nombre in os.listdir(dir_nuevo):
+            if nombre.lower().endswith((".yml", ".yaml")):
+                nombres.add(nombre)
+
+        if not nombres:
+            print("No se encontraron ficheros .yml/.yaml en las carpetas indicadas.")
+            return
+
+        for nombre in sorted(nombres):
+            ruta_orig = os.path.join(dir_original, nombre)
+            ruta_nuevo = os.path.join(dir_nuevo, nombre)
+            # Solo comparamos si existen en ambas
+            if os.path.exists(ruta_orig) and os.path.exists(ruta_nuevo):
+                validar_par_de_ficheros(ruta_orig, ruta_nuevo)
+            else:
+                print(f"\n[AVISO] El fichero '{nombre}' no existe en ambas carpetas.")
+
+
+if __name__ == "__main__":
+    main()
